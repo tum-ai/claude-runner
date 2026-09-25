@@ -1,0 +1,56 @@
+# Dev Claude runner. TUM.ai's Dev Claude app starts this workflow when you use @claude in Slack.
+# It runs Claude Code on your own Claude plan with your CLAUDE_CODE_OAUTH_TOKEN secret, which the
+# app can never read. Details: README.md.
+name: Dev Claude
+run-name: Dev Claude ${{ inputs.run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Run ID (set by Dev Claude)
+        required: true
+      prompt:
+        description: The request (set by Dev Claude)
+        required: true
+      run_token:
+        description: Short-lived run token (set by Dev Claude, masked in logs)
+        required: true
+      mcp_url:
+        description: TUM.ai dev-mcp endpoint
+        required: true
+      callback_url:
+        description: Where the result is reported (optional)
+        required: false
+        default: ""
+
+# The job needs no GitHub API access at all.
+permissions: {}
+
+concurrency:
+  group: dev-claude-${{ inputs.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  dev-claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Must come first: GitHub prints the `with:` values of the next step in the log. Read from
+      # the event payload so the token never appears in this step's own log header.
+      - name: Mask the run token
+        run: |
+          token="$(jq -r '.inputs.run_token // empty' "$GITHUB_EVENT_PATH")"
+          if [ -n "$token" ]; then echo "::add-mask::$token"; fi
+
+      # To trust no code from TUM.ai, pin a full commit SHA instead of v1:
+      #   uses: tum-ai/claude-runner@<40-character commit SHA> # v1.x.y
+      - name: Run Dev Claude
+        uses: tum-ai/claude-runner@v1
+        with:
+          prompt: ${{ inputs.prompt }}
+          run_id: ${{ inputs.run_id }}
+          run_token: ${{ inputs.run_token }}
+          mcp_url: ${{ inputs.mcp_url }}
+          callback_url: ${{ inputs.callback_url }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

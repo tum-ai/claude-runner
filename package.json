@@ -1,0 +1,23 @@
+{
+	"name": "claude-runner",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Dev Claude runner: template repo and GitHub Action that run Claude Code on a TUM.ai member's own plan.",
+	"type": "module",
+	"engines": {
+		"node": "24.x"
+	},
+	"packageManager": "pnpm@11.25.0",
+	"scripts": {
+		"gate": "pnpm lint && pnpm typecheck && pnpm test",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"typecheck": "tsc --noEmit",
+		"test": "node --test \"test/*.test.mjs\""
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.14",
+		"@types/node": "^24.13.6",
+		"typescript": "^6.0.3"
+	}
+}

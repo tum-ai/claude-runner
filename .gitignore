@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+.vercel/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.pnpm-store/
+
+# Credentials must never land in the repo.
+*.pem
+*.key
+
+# Personal agent state
+.claude/settings.local.json
+.claude/worktrees/
+.claude/.cc-writes/

@@ -1,0 +1,110 @@
+name: Dev Claude runner
+description: >-
+  Runs one Dev Claude request with the genuine Claude Code CLI on your own Claude plan, limited to
+  TUM.ai's dev-mcp tools, and reports the result back to Dev Claude.
+author: TUM.ai
+
+# Security model (see README.md): inputs reach scripts only through `env:`, never through `${{ }}`
+# inside `run:`; the prompt goes to Claude Code on stdin; Claude Code gets no built-in tools, only
+# dev-mcp's, and an allowlisted environment without any API key.
+inputs:
+  prompt:
+    description: The request. Treated as data; never passed through a shell.
+    required: true
+  run_id:
+    description: Dev Claude's run ID.
+    required: true
+  run_token:
+    description: >-
+      Short-lived dev-mcp run token for this run. The calling workflow must mask it before this
+      step, because GitHub prints `with:` values in the log (.github/workflows/dev-claude.yml does this).
+    required: true
+  mcp_url:
+    description: dev-mcp's MCP endpoint (https).
+    required: true
+  callback_url:
+    description: Where to POST the result (https). Leave empty to only log it.
+    required: false
+    default: ""
+  claude_code_oauth_token:
+    description: Your token from `claude setup-token`, i.e. `secrets.CLAUDE_CODE_OAUTH_TOKEN`.
+    required: true
+  model:
+    description: Claude model or alias, e.g. `sonnet`. Empty uses your account's default.
+    required: false
+    default: ""
+  max_turns:
+    description: Maximum number of agentic turns (1–50).
+    required: false
+    default: "10"
+  claude_code_version:
+    description: >-
+      Exact Claude Code version installed from npm (`@anthropic-ai/claude-code`). The default is
+      the pin TUM.ai tested; override only to try a new version.
+    required: false
+    default: "2.1.274"
+
+outputs:
+  status:
+    description: "`succeeded` or `failed`."
+    value: ${{ steps.run.outputs.status }}
+
+runs:
+  using: composite
+  steps:
+    - name: Mask credentials
+      shell: bash
+      env:
+        RUN_TOKEN: ${{ inputs.run_token }}
+        OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
+      run: |
+        if [ -n "$RUN_TOKEN" ]; then echo "::add-mask::$RUN_TOKEN"; fi
+        if [ -n "$OAUTH_TOKEN" ]; then echo "::add-mask::$OAUTH_TOKEN"; fi
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 24
+
+    - name: Install Claude Code
+      id: install
+      shell: bash
+      env:
+        CLAUDE_CODE_VERSION: ${{ inputs.claude_code_version }}
+        DISABLE_UPDATES: "1"
+      run: |
+        if [[ ! "$CLAUDE_CODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::claude_code_version must be an exact version such as 2.1.274."
+          exit 1
+        fi
+        # The official npm package, installed into a private prefix; npm checks the tarball
+        # against the registry's integrity hash.
+        prefix="$RUNNER_TEMP/dev-claude-cli"
+        npm install --global --prefix "$prefix" --no-audit --no-fund --loglevel=error \
+          "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
+        installed="$("$prefix/bin/claude" --version)"
+        if [[ "$installed" != "$CLAUDE_CODE_VERSION"* ]]; then
+          echo "::error::Expected Claude Code $CLAUDE_CODE_VERSION but got: $installed"
+          exit 1
+        fi
+        echo "Using Claude Code $installed"
+        echo "bin=$prefix/bin/claude" >> "$GITHUB_OUTPUT"
+
+    - name: Run Claude Code
+      id: run
+      shell: bash
+      env:
+        CLAUDE_BIN: ${{ steps.install.outputs.bin }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
+        DEV_CLAUDE_PROMPT: ${{ inputs.prompt }}
+        DEV_CLAUDE_RUN_ID: ${{ inputs.run_id }}
+        DEV_CLAUDE_RUN_TOKEN: ${{ inputs.run_token }}
+        DEV_CLAUDE_MCP_URL: ${{ inputs.mcp_url }}
+        DEV_CLAUDE_CALLBACK_URL: ${{ inputs.callback_url }}
+        DEV_CLAUDE_MODEL: ${{ inputs.model }}
+        DEV_CLAUDE_MAX_TURNS: ${{ inputs.max_turns }}
+      run: |
+        # Never fall back to API billing or another endpoint; run.mjs also passes Claude Code
+        # only an allowlisted environment.
+        unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL
+        node "$GITHUB_ACTION_PATH/run.mjs"
