@@ -30,6 +30,8 @@ through TUM.ai. The only file that matters in your copy is
 - **Can't:** read your secrets or change this workflow file; the app gets neither the `Secrets`
   nor the `Workflows` permission. GitHub never shows secret values to anyone, including you.
 - Runs use your Actions minutes (a run takes about 1–2 minutes) and your Claude plan's usage.
+- Runs use Claude Opus 5.5 at medium effort. To change that for your own runs, set `model` or
+  `effort` under `with:` in `.github/workflows/dev-claude.yml`.
 
 The workflow runs with `permissions: {}`, never checks out code, masks the run token before
 anything is logged, and passes your Claude token only to Claude Code, with `ANTHROPIC_API_KEY`

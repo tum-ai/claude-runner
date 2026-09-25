@@ -30,7 +30,11 @@ inputs:
     description: Your token from `claude setup-token`, i.e. `secrets.CLAUDE_CODE_OAUTH_TOKEN`.
     required: true
   model:
-    description: Claude model or alias, e.g. `sonnet`. Empty uses your account's default.
+    description: Claude model or alias, e.g. `sonnet`. Empty uses TUM.ai's default, Opus 5.5.
+    required: false
+    default: ""
+  effort:
+    description: Effort level (low, medium, high, xhigh, max). Empty uses TUM.ai's default, medium.
     required: false
     default: ""
   max_turns:
@@ -102,6 +106,7 @@ runs:
         DEV_CLAUDE_MCP_URL: ${{ inputs.mcp_url }}
         DEV_CLAUDE_CALLBACK_URL: ${{ inputs.callback_url }}
         DEV_CLAUDE_MODEL: ${{ inputs.model }}
+        DEV_CLAUDE_EFFORT: ${{ inputs.effort }}
         DEV_CLAUDE_MAX_TURNS: ${{ inputs.max_turns }}
       run: |
         # Never fall back to API billing or another endpoint; run.mjs also passes Claude Code

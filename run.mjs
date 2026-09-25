@@ -61,6 +61,10 @@ const MAX_RESULT_CHARS = 20_000;
 const MAX_ERROR_CHARS = 2_000;
 const MAX_STDOUT_BYTES = 10 * 1024 * 1024;
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:[\]-]{0,99}$/;
+/** Used when the workflow leaves `model` / `effort` empty, so every run behaves the same. */
+const DEFAULT_MODEL = "claude-opus-5-5";
+const DEFAULT_EFFORT = "medium";
+const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 
 /**
  * @typedef {object} RunnerConfig
@@ -69,7 +73,8 @@ const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:[\]-]{0,99}$/;
  * @property {string} runToken
  * @property {URL} mcpUrl
  * @property {string} oauthToken
- * @property {string | undefined} model
+ * @property {string} model
+ * @property {string} effort
  * @property {number} maxTurns
  * @property {string} claudeBin
  * @property {number} timeoutMs
@@ -122,7 +127,8 @@ export function readConfig(env) {
 	const runToken = env.DEV_CLAUDE_RUN_TOKEN ?? "";
 	const oauthToken = env.CLAUDE_CODE_OAUTH_TOKEN ?? "";
 	const mcpUrl = safeUrl(env.DEV_CLAUDE_MCP_URL);
-	const model = env.DEV_CLAUDE_MODEL || undefined;
+	const model = env.DEV_CLAUDE_MODEL || DEFAULT_MODEL;
+	const effort = env.DEV_CLAUDE_EFFORT || DEFAULT_EFFORT;
 	const maxTurns = Number(env.DEV_CLAUDE_MAX_TURNS || "10");
 	const timeoutSeconds = Number(env.DEV_CLAUDE_TIMEOUT_SECONDS || "480");
 
@@ -136,7 +142,8 @@ export function readConfig(env) {
 	if (env.DEV_CLAUDE_CALLBACK_URL && !safeUrl(env.DEV_CLAUDE_CALLBACK_URL)) {
 		problems.push("callback_url must be an https URL");
 	}
-	if (model !== undefined && !MODEL.test(model)) problems.push("model is not a model name");
+	if (!MODEL.test(model)) problems.push("model is not a model name");
+	if (!EFFORTS.includes(effort)) problems.push(`effort must be one of ${EFFORTS.join(", ")}`);
 	if (!Number.isInteger(maxTurns) || maxTurns < 1 || maxTurns > 50) {
 		problems.push("max_turns must be an integer from 1 to 50");
 	}
@@ -155,6 +162,7 @@ export function readConfig(env) {
 		mcpUrl,
 		oauthToken,
 		model,
+		effort,
 		maxTurns,
 		claudeBin: env.CLAUDE_BIN || "claude",
 		timeoutMs: timeoutSeconds * 1000,
@@ -211,7 +219,10 @@ export function claudeArgs(config, configPath) {
 		String(config.maxTurns),
 		"--append-system-prompt",
 		SYSTEM_PROMPT,
-		...(config.model ? ["--model", config.model] : []),
+		"--model",
+		config.model,
+		"--effort",
+		config.effort,
 	];
 }
 

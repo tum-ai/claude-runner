@@ -142,7 +142,8 @@ describe("runner", () => {
 		assert.equal(flag("--permission-prompts"), "none");
 		assert.equal(flag("--max-turns"), "10");
 		assert.ok(seen.args.includes("--strict-mcp-config"));
-		assert.ok(!seen.args.includes("--model"));
+		assert.equal(flag("--model"), "claude-opus-5-5");
+		assert.equal(flag("--effort"), "medium");
 		assert.deepEqual(seen.cwdEntries, [], "Claude Code starts in an empty directory");
 		assert.equal(existsSync(seen.configPath), false, "the MCP config is deleted afterwards");
 
@@ -249,10 +250,11 @@ describe("runner", () => {
 		assert.equal(callbacks[0]?.body.error, "Claude Code did not finish in time.");
 	});
 
-	it("passes a model and turn limit, and rejects values that could smuggle in flags", async () => {
-		await run({ DEV_CLAUDE_MODEL: "sonnet", DEV_CLAUDE_MAX_TURNS: "4" });
+	it("passes a model, effort and turn limit, and rejects values that could smuggle in flags", async () => {
+		await run({ DEV_CLAUDE_MODEL: "sonnet", DEV_CLAUDE_EFFORT: "high", DEV_CLAUDE_MAX_TURNS: "4" });
 		const { args } = await record();
 		assert.equal(args[args.indexOf("--model") + 1], "sonnet");
+		assert.equal(args[args.indexOf("--effort") + 1], "high");
 		assert.equal(args[args.indexOf("--max-turns") + 1], "4");
 
 		await rm(join(dir, "record.json"));
@@ -262,6 +264,11 @@ describe("runner", () => {
 		assert.match(err.join("\n"), /::error::Invalid runner inputs/);
 		assert.equal(callbacks.at(-1)?.body.status, "failed");
 		assert.match(callbacks.at(-1)?.body.error, /model is not a model name/);
+
+		const bad = await run({ DEV_CLAUDE_EFFORT: "--dangerously-skip-permissions" });
+		assert.equal(bad.code, 1);
+		assert.equal(existsSync(join(dir, "record.json")), false, "Claude Code never started");
+		assert.match(callbacks.at(-1)?.body.error, /effort must be one of/);
 	});
 
 	it("refuses to send the run token over plain http", async () => {
