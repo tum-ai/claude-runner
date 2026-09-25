@@ -89,7 +89,8 @@ member workflow: mask run token ─► tum-ai/claude-runner@v1
   starts in an empty directory with `--setting-sources user`, so no repository settings, hooks or
   `CLAUDE.md` load. dev-mcp decides which of its tools the member sees.
 - **Pinned CLI.** `@anthropic-ai/claude-code` at an exact version (input `claude_code_version`,
-  default `2.1.274`, the npm `stable` tag when pinned), with updates disabled. `--bare` is not used
+  default `2.1.282`, the npm `latest` tag when pinned: Opus 5.5 needs 2.1.280 or newer and
+  `stable` was still older), with updates disabled. `--bare` is not used
   because it ignores `CLAUDE_CODE_OAUTH_TOKEN`.
 - **Failures are visible.** The job fails when Claude Code fails or the callback can't be
   delivered, so dev-claude can detect a missing report from the GitHub run status.
